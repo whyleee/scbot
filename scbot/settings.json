@@ -1,0 +1,25 @@
+﻿{
+  "SC_INSTANCENAME": "MySitecoreSite1",
+  "SC_LICENSE_PATH": "D:\\Sitecore\\license.xml",
+  "SC_LANG": "en-US",
+  // Install paths
+  "INSTALLLOCATION": "D:\\web\\MySitecoreSite1",
+  "SC_DATA_FOLDER": "D:\\web\\MySitecoreSite1\\Data",
+  "SC_DB_FOLDER": "D:\\web\\MySitecoreSite1\\Database",
+  "SC_MDF_FOLDER": "D:\\web\\MySitecoreSite1\\Database",
+  "SC_LDF_FOLDER": "D:\\web\\MySitecoreSite1\\Database",
+  // SQL settings
+  "SC_DBTYPE": "MSSQL",
+  "SC_SQL_SERVER": ".\\sqlexpress",
+  "SC_SQL_SERVER_USER": "sa",
+  "SC_SQL_SERVER_PASSWORD": "sa_password",
+  "SC_DBPREFIX": "MySitecoreSite1",
+  "SC_PREFIX_PHYSICAL_FILES": "1",
+  // IIS settings
+  "SC_NET_VERSION": "4",
+  "SC_IISSITE_NAME": "MySitecoreSite1",
+  "SC_IISAPPPOOL_NAME": "MySitecoreSite1",
+  "SC_INTEGRATED_PIPELINE_MODE": "1",
+  "SC_IISSITE_HEADER": "local.mysitecoresite1.com",
+  "SC_IISSITE_PORT": "80"
+}
