@@ -13,6 +13,8 @@ namespace scbot
         [VerbOption("install", HelpText = "Create a new Sitecore instance")]
         public InstallOptions Install { get; set; }
 
+        public CommonOptions Common { get; set; }
+
         [HelpVerbOption]
         public string GetUsage(string verb)
         {
@@ -20,9 +22,15 @@ namespace scbot
         }
     }
 
-    public class InstallOptions
+    public abstract class CommonOptions
     {
-        [Option('c', "config", Required = true, HelpText = "Path to the config with install parameters")]
+        [Option('s', "simple", HelpText = "Simple mode: only basic settings required")]
+        public bool SimpleMode { get; set; }
+    }
+
+    public class InstallOptions : CommonOptions
+    {
+        [Option('c', "config", HelpText = "Path to the config with install parameters")]
         public string ConfigPath { get; set; }
 
         [Option('m', "mode", DefaultValue = InstallMode.Full, HelpText = "Specify install mode: 'full', 'db' or 'client'")]

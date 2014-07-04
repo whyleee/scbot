@@ -3,18 +3,46 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Resources;
 using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using CommandLine;
 using Newtonsoft.Json;
+using SitecoreInstallWizardCore.RuntimeInfo;
 using SitecoreInstallWizardCore.Utils;
 
 namespace scbot
 {
     public class SitecoreInstaller
     {
-        const string SITECORE_MSI_PATH = "Sitecore.msi"; // TODO: configurable
+        private const string SITECORE_MSI_PATH = "Sitecore.msi"; // TODO: configurable
+        private const string SITECORE_INSTALLER_PATH = "InstallWizard.exe";
+
+        public void InitRuntimeParams()
+        {
+            // sitecore runtime params
+            var exeDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+            var installerAssemblyPath = Path.Combine(exeDir, SITECORE_INSTALLER_PATH);
+            var installerAssembly = Assembly.LoadFile(installerAssemblyPath);
+            var installerResources = new ResourceManager("InstallWizard.g", installerAssembly);
+
+            using (var installerXmlConfigStream = installerResources.GetStream("configuration/configuration.xml"))
+            {
+                var runtimeParams = XDocument.Load(installerXmlConfigStream)
+                    .Root
+                    .Element("Parameters")
+                    .Elements("Param")
+                    .Select(el => new RuntimeParameter(
+                        key: el.Attribute("Name").Value,
+                        value: el.Attribute("Value").Value)
+                    ).ToList();
+
+                RuntimeParameters.SetParameters(runtimeParams);
+            }
+        }
 
         public bool Install(Options options)
         {
