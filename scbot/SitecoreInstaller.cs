@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using CommandLine;
 using Newtonsoft.Json;
+using scbot.Repo;
 using SitecoreInstallWizardCore.RuntimeInfo;
 using SitecoreInstallWizardCore.Utils;
 
@@ -20,6 +21,28 @@ namespace scbot
     {
         private const string SITECORE_MSI_PATH = "Sitecore.msi"; // TODO: configurable
         private const string SITECORE_INSTALLER_PATH = "InstallWizard.exe";
+        private const string REPO_DIR = @"%AppData%\scbot";
+
+        public void DownloadLatestInstallerFromSdn()
+        {
+            var sdnClient = new SitecoreSdnClient();
+            sdnClient.Login("username", "password");
+            var sitecorePackage = sdnClient.GetLatestSitecorePackage();
+
+            Console.WriteLine("Found latest Sitecore " + sitecorePackage.Version + ". Downloading...");
+
+            var outDir = Path.Combine(REPO_DIR, sitecorePackage.Version);
+
+            if (!Directory.Exists(outDir))
+            {
+                Directory.CreateDirectory(outDir);
+            }
+
+            var outFile = Path.Combine(outDir, "sitecore_installer.exe");
+            sdnClient.DownloadFile(sitecorePackage.DownloadUrl, outFile);
+
+            Console.WriteLine("Downloaded.");
+        }
 
         public void InitRuntimeParams()
         {

@@ -27,6 +27,8 @@ namespace scbot
             var installer = new SitecoreInstaller();
             var ok = false;
 
+            installer.DownloadLatestInstallerFromSdn();
+            // TODO: use it
             installer.InitRuntimeParams();
 
             if (command == "install")
