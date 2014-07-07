@@ -27,9 +27,8 @@ namespace scbot
             var installer = new SitecoreInstaller();
             var ok = false;
 
-            installer.DownloadLatestInstallerFromSdn();
-            // TODO: use it
-            installer.InitRuntimeParams();
+            var sitecorePackage = installer.DownloadLatestInstallerFromSdn();
+            installer.InitRuntimeParams(sitecorePackage);
 
             if (command == "install")
             {
@@ -52,7 +51,7 @@ namespace scbot
                     var installSite = bool.Parse(ui.AskQuestion("install site", @default: "y", yesno: true));
                 }
 
-                ok = installer.Install(options);
+                ok = installer.Install(sitecorePackage, options);
             }
 
             if (!ok)

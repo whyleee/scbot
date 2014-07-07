@@ -7,7 +7,6 @@ using System.Reflection;
 using System.Resources;
 using System.Security.Principal;
 using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 using CommandLine;
 using Newtonsoft.Json;
@@ -19,36 +18,118 @@ namespace scbot
 {
     public class SitecoreInstaller
     {
-        private const string SITECORE_MSI_PATH = "Sitecore.msi"; // TODO: configurable
-        private const string SITECORE_INSTALLER_PATH = "InstallWizard.exe";
         private const string REPO_DIR = @"%AppData%\scbot";
 
-        public void DownloadLatestInstallerFromSdn()
+        public SitecorePackage DownloadLatestInstallerFromSdn()
         {
             var sdnClient = new SitecoreSdnClient();
-            sdnClient.Login("username", "password");
+            //sdnClient.Login("andrew.sanin@creuna.com", "Q!w2E#r4");
+            sdnClient.Login("pavel.nezhencev@creuna.com", "thp4evone ");
             var sitecorePackage = sdnClient.GetLatestSitecorePackage();
 
             Console.WriteLine("Found latest Sitecore " + sitecorePackage.Version + ". Downloading...");
 
-            var outDir = Path.Combine(REPO_DIR, sitecorePackage.Version);
+            // create repo dir if not exists
+            var repoDir = Environment.ExpandEnvironmentVariables(REPO_DIR);
+            var outDir = Path.Combine(repoDir, sitecorePackage.Version);
 
             if (!Directory.Exists(outDir))
             {
                 Directory.CreateDirectory(outDir);
             }
 
+            // download installer if not exists
             var outFile = Path.Combine(outDir, "sitecore_installer.exe");
-            sdnClient.DownloadFile(sitecorePackage.DownloadUrl, outFile);
 
-            Console.WriteLine("Downloaded.");
+            if (!File.Exists(outFile))
+            {
+                sdnClient.DownloadFile(sitecorePackage.DownloadUrl, outFile);
+                Console.WriteLine("Downloaded.");
+            }
+
+            // unpack installer if not unpacked yet
+            var unpackedInstallerDir = Path.Combine(outDir, "unpacked");
+
+            if (!Directory.Exists(unpackedInstallerDir) || !Directory.GetFileSystemEntries(unpackedInstallerDir).Any())
+            {
+                Directory.CreateDirectory(unpackedInstallerDir);
+
+                Console.WriteLine("Unpacking installer...");
+
+                var sevenZArgs = string.Format("x \"{0}\" -o\"{1}\" -y", outFile, unpackedInstallerDir);
+                var startInfo = new ProcessStartInfo("7z", sevenZArgs);
+                startInfo.RedirectStandardOutput = true;
+                startInfo.UseShellExecute = false;
+                using (var process = Process.Start(startInfo))
+                {
+                    //var output = process.StandardOutput.ReadToEnd();
+
+                    //Console.WriteLine("Installer is unpacked. Output: " + output);
+                }
+
+                Console.WriteLine("Installer unpacked.");
+            }
+
+            // unpack CAB's if not unpacked yet
+            var cabDirPath = Path.Combine(unpackedInstallerDir, @".rsrc\RES_CAB");
+            var cabPath = Path.Combine(cabDirPath, "SETUP_BOOTSTRAP_1.CAB");
+            var unpackedMsiDir = Path.Combine(cabDirPath, "exe");
+
+            if (!Directory.Exists(unpackedMsiDir))
+            {
+                Console.WriteLine("Unpacking CAB's...");
+
+                var sevenZArgs = string.Format("x \"{0}\" -o\"{1}\" -y", cabPath, cabDirPath);
+                var startInfo = new ProcessStartInfo("7z", sevenZArgs);
+                startInfo.RedirectStandardOutput = true;
+                startInfo.UseShellExecute = false;
+
+                // unpack cab with msi
+                using (var process = Process.Start(startInfo))
+                {
+                    var output = process.StandardOutput.ReadToEnd();
+
+                    if (process.ExitCode != 0)
+                    {
+                        output = RemoveLines(output, 5);
+                        Console.WriteLine("Error executing 7-zip: " + output);
+                    }
+                }
+
+                Console.WriteLine("CAB's unpacked.");
+            }
+
+            sitecorePackage.LocalPaths = new SitecorePackagePaths
+            {
+                MsiPath = Path.Combine(unpackedMsiDir, "Sitecore.msi"),
+                WizardPath = Path.Combine(unpackedMsiDir, "InstallWizard.exe")
+            };
+
+            return sitecorePackage;
         }
 
-        public void InitRuntimeParams()
+        private string RemoveLines(string s, int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                var endLineIndex = s.IndexOf(Environment.NewLine, StringComparison.OrdinalIgnoreCase);
+
+                if (endLineIndex == -1 || endLineIndex + 2 > s.Length - 1)
+                {
+                    break;
+                }
+
+                s = s.Substring(endLineIndex + 2);
+            }
+
+            return s;
+        }
+
+        public void InitRuntimeParams(SitecorePackage sitecorePackage)
         {
             // sitecore runtime params
             var exeDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-            var installerAssemblyPath = Path.Combine(exeDir, SITECORE_INSTALLER_PATH);
+            var installerAssemblyPath = Path.Combine(exeDir, sitecorePackage.LocalPaths.WizardPath);
             var installerAssembly = Assembly.LoadFile(installerAssemblyPath);
             var installerResources = new ResourceManager("InstallWizard.g", installerAssembly);
 
@@ -67,12 +148,12 @@ namespace scbot
             }
         }
 
-        public bool Install(Options options)
+        public bool Install(SitecorePackage sitecorePackage, Options options)
         {
             var installDb = (options.Install.Mode & InstallMode.Db) != 0;
             var installClient = (options.Install.Mode & InstallMode.Client) != 0;
 
-            var uniqueInstanceId = SitecoreInstances.GetAvailableInstanceId(SITECORE_MSI_PATH);
+            var uniqueInstanceId = SitecoreInstances.GetAvailableInstanceId(sitecorePackage.LocalPaths.MsiPath);
             var installParams = new Dictionary<string, string>
                 {
                     {"TRANSFORMS", string.Format(":InstanceId{0};:ComponentGUIDTransform{0}.mst", uniqueInstanceId)},
@@ -119,7 +200,7 @@ namespace scbot
 
             // run msi install
             var msiArgs = string.Format("/i \"{0}\" /l*+v \"{1}\" {2}",
-                SITECORE_MSI_PATH, "scbot.install.log", MakeMsiParams(installParams));
+                sitecorePackage.LocalPaths.MsiPath, "scbot.install.log", MakeMsiParams(installParams));
 
             Console.WriteLine("Executing msiexec: " + msiArgs);
 
