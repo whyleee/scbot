@@ -9,6 +9,7 @@ using System.Security.Principal;
 using System.Text;
 using System.Xml.Linq;
 using CommandLine;
+using CredentialManagement;
 using Newtonsoft.Json;
 using scbot.Repo;
 using SitecoreInstallWizardCore.RuntimeInfo;
@@ -23,8 +24,52 @@ namespace scbot
         public SitecorePackage DownloadLatestInstallerFromSdn()
         {
             var sdnClient = new SitecoreSdnClient();
-            //sdnClient.Login("andrew.sanin@creuna.com", "Q!w2E#r4");
-            sdnClient.Login("pavel.nezhencev@creuna.com", "thp4evone ");
+            var sdnCredentials = new Credential {Target = "scbot"};
+            var loggedIn = false;
+
+            if (sdnCredentials.Exists())
+            {
+                sdnCredentials.Load();
+                loggedIn = sdnClient.Login(sdnCredentials.Username, sdnCredentials.Password);
+            }
+
+            if (!loggedIn)
+            {
+                using (var prompt = new VistaPrompt())
+                {
+                    prompt.Title = "Sitecore SDN credentials";
+                    prompt.Message = "Provide your credentials for http://sdn.sitecore.net/";
+                    prompt.GenericCredentials = true;
+                    prompt.ShowSaveCheckBox = true;
+
+                    while (!loggedIn)
+                    {
+                        var result = prompt.ShowDialog();
+
+                        if (result == DialogResult.OK)
+                        {
+                            loggedIn = sdnClient.Login(prompt.Username, prompt.Password);
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+
+                    if (prompt.SaveChecked)
+                    {
+                        sdnCredentials = new Credential(prompt.Username, prompt.Password, "scbot", CredentialType.Generic);
+                        sdnCredentials.Save();
+                    }
+                }
+            }
+
+            if (!loggedIn)
+            {
+                Console.WriteLine("ERROR: Sitecore SDN credentials are required.");
+                Environment.Exit(-1);
+            }
+            
             var sitecorePackage = sdnClient.GetLatestSitecorePackage();
 
             Console.WriteLine("Found latest Sitecore " + sitecorePackage.Version + ". Downloading...");
