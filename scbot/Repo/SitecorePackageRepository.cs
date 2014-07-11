@@ -18,7 +18,7 @@ namespace scbot.Repo
             _ui = ui;
         }
 
-        public SitecorePackage GetPackage()
+        public SitecorePackage GetPackage(string version = null)
         {
             var loggedIn = _ui.AskCredentials(
                 credentialsTest: _sdnClient.Login,
@@ -32,9 +32,16 @@ namespace scbot.Repo
                 Environment.Exit(-1);
             }
 
-            var package = _sdnClient.GetLatestSitecorePackage();
+            var package = _sdnClient.GetSitecorePackage(version);
 
-            Console.WriteLine("Found latest Sitecore " + package.Version + ". Downloading...");
+            if (version == null)
+            {
+                Console.WriteLine("Found latest Sitecore {0}.", package.Version);
+            }
+            else
+            {
+                Console.WriteLine("Using Sitecore {0}...", version);
+            }
 
             var packageDir = CreatePackageDir(package);
             var installerFile = GetInstaller(package, packageDir);
@@ -69,6 +76,7 @@ namespace scbot.Repo
 
             if (!File.Exists(installerFile))
             {
+                Console.WriteLine("Downloaded Sitecore package...");
                 _sdnClient.DownloadFile(package.DownloadUrl, installerFile);
             }
 

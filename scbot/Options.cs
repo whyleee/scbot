@@ -35,6 +35,9 @@ namespace scbot
 
         [Option('m', "mode", DefaultValue = InstallMode.Full, HelpText = "Specify install mode: 'full', 'db' or 'client'")]
         public InstallMode Mode { get; set; }
+
+        [Option('v', "version", HelpText = "Sitecore version to install (format: 7.2 rev. 140526). Default: latest version")]
+        public string Version { get; set; }
     }
 
     [Flags]

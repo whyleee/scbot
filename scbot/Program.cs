@@ -33,7 +33,7 @@ namespace scbot
             {
                 options.Common = options.Install;
 
-                var sitecorePackage = repo.GetPackage();
+                var sitecorePackage = repo.GetPackage(options.Install.Version);
                 installer.InitRuntimeParams(sitecorePackage);
 
                 SitecoreInstallParameters config = null;

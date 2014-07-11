@@ -37,7 +37,7 @@ namespace scbot.Repo
             return loggedIn;
         }
 
-        public SitecorePackage GetLatestSitecorePackage(SitecorePackageType packageType = SitecorePackageType.ExeInstaller)
+        public SitecorePackage GetSitecorePackage(string version = null, SitecorePackageType packageType = SitecorePackageType.ExeInstaller)
         {
             // Find a link for the latest version
             var overviewHtml = _client.DownloadString(SDN_DOWNLOAD_PAGE_URL);
@@ -52,7 +52,6 @@ namespace scbot.Repo
                 .Attributes["href"]
                 .Value;
 
-            var version = recommenedOverviewUrl.Substring(recommenedOverviewUrl.IndexOf("/Update/") + "/Update/".Length).Replace("_", "").Replace(".aspx", "");
             string packageTypeSuffix = null;
 
             if (packageType == SitecorePackageType.ExeInstaller)
@@ -68,8 +67,21 @@ namespace scbot.Repo
                 packageTypeSuffix = "";
             }
 
-            var downloadUrl = string.Format("http://sdn.sitecore.net/downloads/Sitecore{0}{1}.download", version, packageTypeSuffix);
-            var displayVersion = version.Insert(1, ".").Replace("rev", " rev. ");
+            string urlVersion;
+
+            if (version != null)
+            {
+                urlVersion = version.Replace(" rev. ", "rev").Replace(".", "");
+            }
+            else
+            {
+                urlVersion = recommenedOverviewUrl
+                    .Substring(recommenedOverviewUrl.IndexOf("/Update/") + "/Update/".Length)
+                    .Replace("_", "").Replace(".aspx", "");
+            }
+
+            var downloadUrl = string.Format("http://sdn.sitecore.net/downloads/Sitecore{0}{1}.download", urlVersion, packageTypeSuffix);
+            var displayVersion = urlVersion.Insert(1, ".").Replace("rev", " rev. ");
 
             return new SitecorePackage
             {
