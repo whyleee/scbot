@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Reflection;
+using CredentialManagement;
 using Perks;
 
 namespace scbot
@@ -81,6 +81,57 @@ namespace scbot
             }
 
             return answer;
+        }
+
+        public bool AskCredentials(Func<string, string, bool> credentialsTest, string title = null, string message = null)
+        {
+            var credentialStoreName = Assembly.GetExecutingAssembly().GetName().Name;
+            var sdnCredentials = new Credential {Target = credentialStoreName};
+            var loggedIn = false;
+
+            if (sdnCredentials.Exists())
+            {
+                sdnCredentials.Load();
+                loggedIn = credentialsTest(sdnCredentials.Username, sdnCredentials.Password);
+            }
+
+            if (!loggedIn)
+            {
+                using (var prompt = new VistaPrompt())
+                {
+                    prompt.Title = title;
+                    prompt.Message = message;
+                    prompt.GenericCredentials = true;
+                    prompt.ShowSaveCheckBox = true;
+
+                    while (!loggedIn)
+                    {
+                        var result = prompt.ShowDialog();
+
+                        if (result == DialogResult.OK)
+                        {
+                            loggedIn = credentialsTest(prompt.Username, prompt.Password);
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+
+                    if (prompt.SaveChecked)
+                    {
+                        sdnCredentials = new Credential(
+                            prompt.Username,
+                            prompt.Password,
+                            credentialStoreName,
+                            CredentialType.Generic
+                        );
+                        sdnCredentials.Save();
+                    }
+                }
+            }
+
+            return loggedIn;
         }
 
         private void WriteFinalAnswer(string answer, int leftPadding)

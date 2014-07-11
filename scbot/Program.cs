@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CommandLine;
 using scbot.Config;
+using scbot.Repo;
 
 namespace scbot
 {
@@ -25,14 +26,16 @@ namespace scbot
             }
 
             var installer = new SitecoreInstaller();
+            var repo = new SitecorePackageRepository(ui);
             var ok = false;
-
-            var sitecorePackage = installer.DownloadLatestInstallerFromSdn();
-            installer.InitRuntimeParams(sitecorePackage);
 
             if (command == "install")
             {
                 options.Common = options.Install;
+
+                var sitecorePackage = repo.GetPackage();
+                installer.InitRuntimeParams(sitecorePackage);
+
                 SitecoreInstallParameters config = null;
 
                 if (string.IsNullOrEmpty(options.Install.ConfigPath))
