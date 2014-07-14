@@ -13,6 +13,8 @@
 
     public class SitecorePackagePaths
     {
+        public string PackageDir { get; set; }
+
         public string MsiPath { get; set; }
 
         public string WizardPath { get; set; }

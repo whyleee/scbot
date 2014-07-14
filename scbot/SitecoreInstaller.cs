@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Resources;
 using System.Security.Principal;
 using System.Text;
-using System.Xml.Linq;
-using CommandLine;
-using Newtonsoft.Json;
+using scbot.Config;
+using scbot.Config.Json;
+using scbot.Config.Resources;
 using scbot.Repo;
 using SitecoreInstallWizardCore.RuntimeInfo;
 using SitecoreInstallWizardCore.Utils;
@@ -18,100 +16,88 @@ namespace scbot
 {
     public class SitecoreInstaller
     {
+        private readonly JsonConfigReader _userConfigReader = new JsonConfigReader();
+        private readonly AssemblyXmlResourceConfigReader _runtimeConfigReader = new AssemblyXmlResourceConfigReader();
+
         public void InitRuntimeParams(SitecorePackage sitecorePackage)
         {
-            // sitecore runtime params
-            var exeDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-            var installerAssemblyPath = Path.Combine(exeDir, sitecorePackage.LocalPaths.WizardPath);
-            var installerAssembly = Assembly.LoadFile(installerAssemblyPath);
-            var installerResources = new ResourceManager("InstallWizard.g", installerAssembly);
+            var runtimeParams = _runtimeConfigReader
+                .ReadConfig(sitecorePackage.LocalPaths.WizardPath)
+                .Select(param => new RuntimeParameter(param.Key, param.Value))
+                .ToList();
 
-            using (var installerXmlConfigStream = installerResources.GetStream("configuration/configuration.xml"))
-            {
-                var runtimeParams = XDocument.Load(installerXmlConfigStream)
-                    .Root
-                    .Element("Parameters")
-                    .Elements("Param")
-                    .Select(el => new RuntimeParameter(
-                        key: el.Attribute("Name").Value,
-                        value: el.Attribute("Value").Value)
-                    ).ToList();
-
-                RuntimeParameters.SetParameters(runtimeParams);
-            }
+            RuntimeParameters.SetParameters(runtimeParams);
         }
 
         public bool Install(SitecorePackage sitecorePackage, Options options)
+        {
+            var installParams = CreateInstallParams(sitecorePackage, options);
+            AddUserParams(options.Install.ConfigPath, installParams);
+
+            var ok = RunMsi(sitecorePackage, installParams);
+
+            return ok;
+        }
+
+        private IDictionary<string, string> CreateInstallParams(SitecorePackage sitecorePackage, Options options)
         {
             var installDb = (options.Install.Mode & InstallMode.Db) != 0;
             var installClient = (options.Install.Mode & InstallMode.Client) != 0;
 
             var uniqueInstanceId = SitecoreInstances.GetAvailableInstanceId(sitecorePackage.LocalPaths.MsiPath);
             var installParams = new Dictionary<string, string>
-                {
-                    {"TRANSFORMS", string.Format(":InstanceId{0};:ComponentGUIDTransform{0}.mst", uniqueInstanceId)},
-                    {"MSINEWINSTANCE", "1"},
-                    {"LOGVERBOSE", "1"},
-                };
+            {
+                {SitecoreMsiParams.MsiTransforms, string.Format(":InstanceId{0};:ComponentGUIDTransform{0}.mst", uniqueInstanceId)},
+                {SitecoreMsiParams.MsiNewInstance, "1"},
+                {SitecoreMsiParams.MsiLogVerbose, "1"},
+            };
 
             // specify install mode for msi
             if (options.Install.Mode == InstallMode.Full)
             {
-                installParams.Add("SC_FULL", "1");
+                installParams.Add(SitecoreMsiParams.FullMode, "1");
             }
             else if (options.Install.Mode == InstallMode.Db)
             {
-                installParams.Add("SC_DBONLY", "1");
+                installParams.Add(SitecoreMsiParams.DatabaseOnlyMode, "1");
             }
             else if (options.Install.Mode == InstallMode.Client)
             {
-                installParams.Add("SC_CLIENTONLY", "1");
+                installParams.Add(SitecoreMsiParams.ClientOnlyMode, "1");
             }
 
-            // set unique IIS site ID
             if (installClient)
             {
-                if (!IsAdministrator())
-                {
-                    Console.WriteLine("ERROR: you need administrator rights to create a website in IIS.");
-                    Environment.Exit(Parser.DefaultExitCodeFail);
-                }
-
-                installParams.Add("SC_IISSITE_ID", IisUtil.GetUniqueSiteID().ToString());
+                SetClientParams(installParams);
             }
 
-            // read user params
-            var userParams = ReadParams(options.Install.ConfigPath);
+            return installParams;
+        }
+
+        private void SetClientParams(IDictionary<string, string> installParams)
+        {
+            if (!IsAdministrator())
+            {
+                Console.WriteLine("ERROR: you need administrator rights to create a website in IIS.");
+                Environment.Exit(-1);
+            }
+
+            installParams.Add(SitecoreMsiParams.IisSiteID, IisUtil.GetUniqueSiteID().ToString());
+        }
+
+        private void AddUserParams(string configPath, IDictionary<string, string> installParams)
+        {
+            var userParams = _userConfigReader.ReadConfig(configPath);
 
             foreach (var @param in userParams)
             {
                 installParams.Add(@param.Key, @param.Value);
             }
 
-            installParams.Add("SC_SQL_SERVER_CONFIG_USER", installParams["SC_SQL_SERVER_USER"]);
-            installParams.Add("SC_SQL_SERVER_CONFIG_PASSWORD", installParams["SC_SQL_SERVER_PASSWORD"]);
-
-            // run msi install
-            var msiArgs = string.Format("/i \"{0}\" /l*+v \"{1}\" {2}",
-                sitecorePackage.LocalPaths.MsiPath, "scbot.install.log", MakeMsiParams(installParams));
-
-            Console.WriteLine("Executing msiexec: " + msiArgs);
-
-            var msi = Process.Start("msiexec", msiArgs);
-            msi.WaitForExit();
-
-            return msi.ExitCode == 0;
+            // TODO: if SqlServerConfig{User|Password} set, create SQL user if not exists
         }
 
-        private IDictionary<string, string> ReadParams(string configPath)
-        {
-            var jsonReader = new JsonTextReader(new StreamReader(configPath));
-            var @params = new JsonSerializer().Deserialize<Dictionary<string, string>>(jsonReader);
-
-            return @params;
-        }
-
-        private string MakeMsiParams(IDictionary<string, string> @params)
+        private string MakeMsiParams(IEnumerable<KeyValuePair<string, string>> @params)
         {
             var msiParams = new StringBuilder();
 
@@ -127,6 +113,24 @@ namespace scbot
             }
 
             return msiParams.ToString();
+        }
+
+        private bool RunMsi(SitecorePackage sitecorePackage, IEnumerable<KeyValuePair<string, string>> installParams)
+        {
+            var logFileName = string.Format("scbot.install.{0}.log", DateTime.Now.ToString("yyyy-MM-dd'.'HH-mm-ss"));
+            var logPath = Path.Combine(sitecorePackage.LocalPaths.PackageDir, logFileName);
+
+            var msiArgs = string.Format("/i \"{0}\" /l*+v \"{1}\" {2}",
+                sitecorePackage.LocalPaths.MsiPath, logPath, MakeMsiParams(installParams));
+
+            Console.WriteLine("Executing msiexec: " + msiArgs);
+
+            using (var msi = Process.Start("msiexec", msiArgs))
+            {
+                msi.WaitForExit();
+
+                return msi.ExitCode == 0;
+            }
         }
 
         private bool IsAdministrator()

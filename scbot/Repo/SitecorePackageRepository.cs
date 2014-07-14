@@ -50,6 +50,7 @@ namespace scbot.Repo
 
             package.LocalPaths = new SitecorePackagePaths
             {
+                PackageDir = packageDir,
                 MsiPath = Path.Combine(unpackedMsiDir, "Sitecore.msi"),
                 WizardPath = Path.Combine(unpackedMsiDir, "InstallWizard.exe")
             };
@@ -76,7 +77,7 @@ namespace scbot.Repo
 
             if (!File.Exists(installerFile))
             {
-                Console.WriteLine("Downloaded Sitecore package...");
+                Console.WriteLine("Downloading Sitecore package...");
                 _sdnClient.DownloadFile(package.DownloadUrl, installerFile);
             }
 

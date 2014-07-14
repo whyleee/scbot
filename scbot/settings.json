@@ -1,4 +1,5 @@
 ﻿{
+  // General settings
   "SC_INSTANCENAME": "MySitecoreSite1",
   "SC_LICENSE_PATH": "D:\\Sitecore\\license.xml",
   "SC_LANG": "en-US",
@@ -15,6 +16,8 @@
   "SC_SQL_SERVER_PASSWORD": "sa_password",
   "SC_DBPREFIX": "MySitecoreSite1",
   "SC_PREFIX_PHYSICAL_FILES": "1",
+  "SC_SQL_SERVER_CONFIG_USER": "sa",
+  "SC_SQL_SERVER_CONFIG_PASSWORD": "sa_password",
   // IIS settings
   "SC_NET_VERSION": "4",
   "SC_IISSITE_NAME": "MySitecoreSite1",

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
 using Fizzler.Systems.HtmlAgilityPack;
 using HtmlAgilityPack;
 
@@ -71,13 +72,29 @@ namespace scbot.Repo
 
             if (version != null)
             {
-                urlVersion = version.Replace(" rev. ", "rev").Replace(".", "");
+                if (!version.Contains("rev"))
+                {
+                    var secondPointIndex = IndexOfNth(version, '.', 2);
+                    if (secondPointIndex != -1)
+                    {
+                        version = version.Insert(secondPointIndex, " rev");
+                    }
+                }
+
+                urlVersion = version.Replace(" ", "").Replace(".", "");
             }
             else
             {
                 urlVersion = recommenedOverviewUrl
                     .Substring(recommenedOverviewUrl.IndexOf("/Update/") + "/Update/".Length)
                     .Replace("_", "").Replace(".aspx", "");
+            }
+
+            if (!Regex.IsMatch(urlVersion, @"^\d{2}rev\d{6}$"))
+            {
+                Console.WriteLine("ERROR: invalid Sitecore version '{0}'. Correct format: '{1}' or '{2}'",
+                    version ?? urlVersion, "7.2 rev. 123456", "7.2.123456");
+                Environment.Exit(-1);
             }
 
             var downloadUrl = string.Format("http://sdn.sitecore.net/downloads/Sitecore{0}{1}.download", urlVersion, packageTypeSuffix);
@@ -93,7 +110,29 @@ namespace scbot.Repo
 
         public void DownloadFile(string url, string to)
         {
-            _client.DownloadFile(url, to);
+            try
+            {
+                _client.DownloadFile(url, to);
+            }
+            catch (WebException ex)
+            {
+                Console.WriteLine("ERROR: " + ex.Message);
+                Environment.Exit(-1);
+            }
+        }
+
+        private static int IndexOfNth(string str, char c, int n)
+        {
+            int s = -1;
+
+            for (int i = 0; i < n; i++)
+            {
+                s = str.IndexOf(c, s + 1);
+
+                if (s == -1) break;
+            }
+
+            return s;
         }
     }
 }

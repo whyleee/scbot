@@ -75,7 +75,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Config\IConfigReader.cs" />
+    <Compile Include="Config\Json\JsonConfigReader.cs" />
     <Compile Include="Config\Json\SitecoreBoolConverter.cs" />
+    <Compile Include="Config\Resources\AssemblyXmlResourceConfigReader.cs" />
     <Compile Include="Config\SitecoreMsiParams.cs" />
     <Compile Include="Config\SitecoreInstallParameters.cs" />
     <Compile Include="Config\InteractiveConfigGenerator.cs" />
