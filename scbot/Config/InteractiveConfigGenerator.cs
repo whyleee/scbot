@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json;
 using scbot.Config.Json;
 using SitecoreInstallWizardCore.Utils;
 
@@ -12,6 +11,7 @@ namespace scbot.Config
     {
         private readonly ConsoleUi _ui;
         private readonly Options _options;
+        private readonly IConfigWriter _configWriter = new JsonConfig();
 
         public InteractiveConfigGenerator(ConsoleUi ui, Options options)
         {
@@ -81,7 +81,7 @@ namespace scbot.Config
             if (saveJson)
             {
                 var jsonPath = _ui.AskQuestion("save path", @default: string.Format("scbot.{0}.json", simpleInstanceName));
-                SaveToJson(jsonPath, config);
+                _configWriter.WriteConfig(jsonPath, config);
 
                 Console.WriteLine("Config generated: {0}", jsonPath);
             }
@@ -108,29 +108,6 @@ namespace scbot.Config
             }
 
             return ui.AskQuestion("sql server", @default: sqlServers.FirstOrDefault());
-        }
-
-        private void SaveToJson(string jsonPath, SitecoreInstallParameters config)
-        {
-            // serialize to json
-            var serializeSettings = new JsonSerializerSettings
-            {
-                Formatting = Formatting.Indented,
-                NullValueHandling = NullValueHandling.Ignore,
-                DefaultValueHandling = DefaultValueHandling.Ignore,
-                Converters = new JsonConverter[] { new SitecoreBoolConverter() }
-            };
-            var json = JsonConvert.SerializeObject(config, serializeSettings);
-
-            // add comments
-            var jsonLines = json.Split(new[] {Environment.NewLine}, StringSplitOptions.None).ToList();
-            jsonLines.Insert(1, "  // General settings");
-            jsonLines.Insert(jsonLines.FindIndex(line => line.Contains(SitecoreMsiParams.Installlocation)), "  // Install paths");
-            jsonLines.Insert(jsonLines.FindIndex(line => line.Contains(SitecoreMsiParams.DatabaseType)), "  // DB settings");
-            jsonLines.Insert(jsonLines.FindIndex(line => line.Contains(SitecoreMsiParams.NetVersion)), "  // IIS settings");
-
-            // write to file
-            File.WriteAllLines(jsonPath, jsonLines);
         }
     }
 }

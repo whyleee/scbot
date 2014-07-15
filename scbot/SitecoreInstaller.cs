@@ -16,12 +16,12 @@ namespace scbot
 {
     public class SitecoreInstaller
     {
-        private readonly JsonConfigReader _userConfigReader = new JsonConfigReader();
-        private readonly AssemblyXmlResourceConfigReader _runtimeConfigReader = new AssemblyXmlResourceConfigReader();
+        private readonly JsonConfig _userConfig = new JsonConfig();
+        private readonly AssemblyXmlResourceConfigReader _runtimeConfig = new AssemblyXmlResourceConfigReader();
 
         public void InitRuntimeParams(SitecorePackage sitecorePackage)
         {
-            var runtimeParams = _runtimeConfigReader
+            var runtimeParams = _runtimeConfig
                 .ReadConfig(sitecorePackage.LocalPaths.WizardPath)
                 .Select(param => new RuntimeParameter(param.Key, param.Value))
                 .ToList();
@@ -29,10 +29,21 @@ namespace scbot
             RuntimeParameters.SetParameters(runtimeParams);
         }
 
-        public bool Install(SitecorePackage sitecorePackage, Options options)
+        public bool Install(SitecorePackage sitecorePackage, Options options, IEnumerable<KeyValuePair<string, string>> userParams = null)
         {
+            if (userParams == null && string.IsNullOrEmpty(options.Install.ConfigPath))
+            {
+                throw new ArgumentException("Neither user params nor config path provided");
+            }
+
             var installParams = CreateInstallParams(sitecorePackage, options);
-            AddUserParams(options.Install.ConfigPath, installParams);
+
+            if (userParams == null)
+            {
+                userParams = _userConfig.ReadConfig(options.Install.ConfigPath);
+            }
+
+            AddUserParams(userParams, installParams);
 
             var ok = RunMsi(sitecorePackage, installParams);
 
@@ -85,13 +96,11 @@ namespace scbot
             installParams.Add(SitecoreMsiParams.IisSiteID, IisUtil.GetUniqueSiteID().ToString());
         }
 
-        private void AddUserParams(string configPath, IDictionary<string, string> installParams)
+        private void AddUserParams(IEnumerable<KeyValuePair<string, string>> userParams, IDictionary<string, string> installParams)
         {
-            var userParams = _userConfigReader.ReadConfig(configPath);
-
             foreach (var @param in userParams)
             {
-                installParams.Add(@param.Key, @param.Value);
+                installParams[@param.Key] = @param.Value;
             }
 
             // TODO: if SqlServerConfig{User|Password} set, create SQL user if not exists

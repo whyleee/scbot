@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CommandLine;
 using scbot.Config;
+using scbot.Config.Json;
 using scbot.Repo;
 
 namespace scbot
@@ -37,7 +38,7 @@ namespace scbot
                 var sitecorePackage = repo.GetPackage(options.Install.Version);
                 installer.InitRuntimeParams(sitecorePackage);
 
-                SitecoreInstallParameters config = null;
+                IEnumerable<KeyValuePair<string, string>> userParams = null;
 
                 if (string.IsNullOrEmpty(options.Install.ConfigPath))
                 {
@@ -47,15 +48,25 @@ namespace scbot
                         : "Answer the questions below...");
 
                     var configGenerator = new InteractiveConfigGenerator(ui, options);
-                    config = configGenerator.Generate();
+                    var config = configGenerator.Generate();
 
-                    Environment.Exit(0);
+                    // can't install site with all default settings
+                    if (options.Common.SimpleMode)
+                    {
+                        Environment.Exit(0);
+                    }
 
-                    // TODO: impl
                     var installSite = bool.Parse(ui.AskQuestion("install site", @default: "y", yesno: true));
+
+                    if (!installSite)
+                    {
+                        Environment.Exit(0);
+                    }
+
+                    userParams = new JsonConfig().ParseParams(config);
                 }
 
-                ok = installer.Install(sitecorePackage, options);
+                ok = installer.Install(sitecorePackage, options, userParams);
             }
 
             if (!ok)

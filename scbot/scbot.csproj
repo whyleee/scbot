@@ -77,7 +77,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Config\IConfigReader.cs" />
-    <Compile Include="Config\Json\JsonConfigReader.cs" />
+    <Compile Include="Config\IConfigWriter.cs" />
+    <Compile Include="Config\Json\JsonConfig.cs" />
     <Compile Include="Config\Json\SitecoreBoolConverter.cs" />
     <Compile Include="Config\Resources\AssemblyXmlResourceConfigReader.cs" />
     <Compile Include="Config\SitecoreMsiParams.cs" />
