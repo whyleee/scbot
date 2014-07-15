@@ -32,7 +32,11 @@ namespace scbot.Config
             config.InstanceName = _ui.AskQuestion("instance name", @default: currentDirName);
             var simpleInstanceName = config.InstanceName.Replace(" ", "").ToLower();
             config.Language = _ui.AskQuestion("language", @default: "en-US");
-            config.LicensePath = _ui.AskQuestion("license path", @default: simpleMode ? @"C:\Sitecore\license.xml" : null);
+            config.LicensePath = _ui.AskFile("license path",
+                dialogTitle: "Select Sitecore license file",
+                fileFilter: "Sitecore license files (*.xml)|*.xml",
+                @default: simpleMode ? @"C:\Sitecore\license.xml" : null
+            );
             config.InstallFolder = _ui.AskQuestion("install path", @default: currentDir);
             config.DataFolder = _ui.AskQuestion("data path", @default: Path.Combine(config.InstallFolder, "App_Data"));
 

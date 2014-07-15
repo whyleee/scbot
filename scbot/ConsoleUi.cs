@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Windows.Forms;
 using CredentialManagement;
 using Perks;
+using DialogResult = System.Windows.Forms.DialogResult;
 
 namespace scbot
 {
@@ -17,6 +19,16 @@ namespace scbot
         }
 
         public string AskQuestion(string question, string @default = null, bool yesno = false)
+        {
+            return Ask(question, @default, yesno, reply: ConsoleReply);
+        }
+
+        public string AskFile(string question, string dialogTitle, string fileFilter = null, string @default = null)
+        {
+            return Ask(question, @default, yesno: false, reply: () => OpenFileReply(dialogTitle, fileFilter));
+        }
+
+        private string Ask(string question, string @default, bool yesno, Func<string> reply)
         {
             if (_options.Common.SimpleMode)
             {
@@ -50,14 +62,7 @@ namespace scbot
                 WriteQuestionMark();
                 Console.Write(output);
 
-                var userAnswer = Console.ReadLine();
-
-                // exit app if interrupted
-                if (userAnswer == null)
-                {
-                    Environment.Exit(0);
-                }
-
+                var userAnswer = reply();
                 answer = userAnswer.IfNotNullOrEmpty() ?? @default;
 
                 if (string.IsNullOrEmpty(answer))
@@ -108,7 +113,7 @@ namespace scbot
                     {
                         var result = prompt.ShowDialog();
 
-                        if (result == DialogResult.OK)
+                        if (result == CredentialManagement.DialogResult.OK)
                         {
                             loggedIn = credentialsTest(prompt.Username, prompt.Password);
                         }
@@ -174,6 +179,33 @@ namespace scbot
             }
 
             return false;
+        }
+
+        private string ConsoleReply()
+        {
+            var answer = Console.ReadLine();
+
+            // exit app if interrupted
+            if (answer == null)
+            {
+                Environment.Exit(0);
+            }
+
+            return answer;
+        }
+
+        private string OpenFileReply(string dialogTitle, string fileFilter)
+        {
+            using (var dialog = new OpenFileDialog())
+            {
+                dialog.Title = dialogTitle;
+                dialog.Filter = fileFilter;
+
+                var result = dialog.ShowDialog();
+                Console.WriteLine();
+
+                return result == DialogResult.OK ? dialog.FileName : null;
+            };
         }
     }
 }

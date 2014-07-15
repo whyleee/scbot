@@ -9,6 +9,7 @@ namespace scbot
 {
     class Program
     {
+        [STAThread]
         static void Main(string[] args)
         {
             var options = new Options();
