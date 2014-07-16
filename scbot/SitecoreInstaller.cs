@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -49,6 +50,7 @@ namespace scbot
             AddUserParams(userParams, installParams);
 
             var ok = RunMsi(sitecorePackage, installParams);
+            DoCustomInstallSteps(installParams);
 
             return ok;
         }
@@ -111,6 +113,89 @@ namespace scbot
             }
 
             return msiParams.ToString();
+        }
+
+        private void DoCustomInstallSteps(IDictionary<string, string> installParams)
+        {
+            // create SQL config user if required but not exists
+            if (installParams.ContainsKey(SitecoreMsiParams.SqlServerConfigUser) &&
+                installParams.ContainsKey(SitecoreMsiParams.SqlServerConfigPassword))
+            {
+                var configUsername = installParams[SitecoreMsiParams.SqlServerConfigUser];
+                var configPassword = installParams[SitecoreMsiParams.SqlServerConfigPassword];
+
+                var dbPrefix = installParams[SitecoreMsiParams.SqlDbPrefix];
+                dbPrefix = "TestScSite3";
+                var mapToDbs = new[] {dbPrefix + "Sitecore_Core", dbPrefix + "Sitecore_Master", dbPrefix + "Sitecore_Web"};
+
+                var sqlServer = installParams[SitecoreMsiParams.SqlServer];
+                var sqlUsername = installParams[SitecoreMsiParams.SqlServerUser];
+                var sqlPassword = installParams[SitecoreMsiParams.SqlServerPassword];
+
+                var connectionString = string.Format("Server={0};User Id={1};Password={2}", sqlServer, sqlUsername, sqlPassword);
+
+                using (var sqlConnection = new SqlConnection(connectionString))
+                {
+                    sqlConnection.Open();
+
+                    CreateSqlConfigUserIfNotExists(sqlConnection, configUsername, configPassword, mapToDbs);
+                }
+            }
+        }
+
+        private void CreateSqlConfigUserIfNotExists(SqlConnection sqlConnection, string username, string password, IEnumerable<string> mapToDbs)
+        {
+            using (var selectUsers = new SqlCommand(
+                string.Format("SELECT count(1) FROM sys.server_principals where name = N'{0}'", username),
+                sqlConnection
+            ))
+            {
+                var loginExists = (int) selectUsers.ExecuteScalar() > 0;
+
+                if (loginExists)
+                {
+                    return;
+                }
+            }
+
+            Console.WriteLine("Creating '{0}' SQL user...", username);
+
+            using (var createLogin = new SqlCommand(string.Format(
+                "CREATE LOGIN [{0}] " +
+                "WITH PASSWORD=N'{1}', DEFAULT_DATABASE=[master], CHECK_EXPIRATION=OFF, CHECK_POLICY=OFF",
+                username, password),
+                sqlConnection
+            ))
+            {
+                createLogin.ExecuteNonQuery();
+            }
+
+            foreach (var db in mapToDbs)
+            {
+                using (var useDb = new SqlCommand(
+                    string.Format("USE [{0}]", db), sqlConnection
+                ))
+                {
+                    useDb.ExecuteNonQuery();
+                }
+                using (var createUser = new SqlCommand(
+                    string.Format("CREATE USER [{0}] FOR LOGIN [{0}]", username), sqlConnection
+                ))
+                {
+                    createUser.ExecuteNonQuery();
+                }
+                using (var addRoles = new SqlCommand(string.Format(
+                    "EXEC sp_addrolemember N'db_datareader', N'{0}' " +
+                    "EXEC sp_addrolemember N'db_datawriter', N'{0}' " +
+                    "EXEC sp_addrolemember N'db_owner', N'{0}'",
+                    username), sqlConnection
+                ))
+                {
+                    addRoles.Parameters.AddWithValue("username", username);
+
+                    addRoles.ExecuteNonQuery();
+                }
+            }
         }
 
         private bool RunMsi(SitecorePackage sitecorePackage, IDictionary<string, string> installParams)
