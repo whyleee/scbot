@@ -43,21 +43,7 @@ namespace scbot
                     userParams = config.ReadConfig(options.Install.ConfigPath);
                 }
 
-                var sitecoreVersion = options.Install.Version;
-
-                // if no version, but user config provided - try to get the sitecore version from config
-                if (string.IsNullOrEmpty(sitecoreVersion) && userParams != null)
-                {
-                    sitecoreVersion = userParams[SitecoreMsiParams.SitecoreVersion];
-                }
-
-                if (sitecoreVersion == "latest")
-                {
-                    sitecoreVersion = null;
-                }
-
-                var sitecorePackage = repo.GetPackage(sitecoreVersion);
-                installer.InitRuntimeParams(sitecorePackage);
+                installer.InitMinSupportedSqlServerVersion(); // required for SQLUtil
 
                 if (userParams == null)
                 {
@@ -82,8 +68,23 @@ namespace scbot
                         Environment.Exit(0);
                     }
 
-                    userParams = new JsonConfig().ParseParams(generatedConfig);
+                    userParams = config.ParseParams(generatedConfig);
                 }
+
+                var sitecoreVersion = options.Install.Version;
+
+                if (userParams.ContainsKey(SitecoreMsiParams.SitecoreVersion))
+                {
+                    sitecoreVersion = userParams[SitecoreMsiParams.SitecoreVersion];
+                }
+
+                if (sitecoreVersion == "latest")
+                {
+                    sitecoreVersion = null;
+                }
+
+                var sitecorePackage = repo.GetPackage(sitecoreVersion);
+                installer.InitRuntimeParams(sitecorePackage);
 
                 ok = installer.Install(sitecorePackage, options, userParams);
             }

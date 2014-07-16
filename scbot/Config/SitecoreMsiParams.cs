@@ -6,7 +6,7 @@ namespace scbot.Config
 {
     // Copy of SitecoreInstallWizardCore.Constants.PublicConstants,
     // but using 'const' instead of 'readonly' fields
-    public class SitecoreMsiParams
+    public static class SitecoreMsiParams
     {
         public const string FullMode = "SC_FULL";
         public const string ClientOnlyMode = "SC_CLIENTONLY";

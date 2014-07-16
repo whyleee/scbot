@@ -18,6 +18,14 @@ namespace scbot
     {
         private readonly AssemblyXmlResourceConfigReader _runtimeConfig = new AssemblyXmlResourceConfigReader();
 
+        public void InitMinSupportedSqlServerVersion()
+        {
+            // SQL Server 2008 R2 SP1 - min supported version from Sitecore 7.0 to the latest version
+            RuntimeParameters.SetParameter(SitecoreInstallerParams.SqlServerMajorVersion, "10");
+            RuntimeParameters.SetParameter(SitecoreInstallerParams.SqlServerMinorVersion, "50");
+            RuntimeParameters.SetParameter(SitecoreInstallerParams.SqlServerBuildVersion, "2500");
+        }
+
         public void InitRuntimeParams(SitecorePackage sitecorePackage)
         {
             Ensure.ArgumentNotNull(sitecorePackage, "sitecorePackage");
