@@ -61,7 +61,7 @@ namespace scbot
                         Environment.Exit(0);
                     }
 
-                    var installSite = bool.Parse(ui.AskQuestion("install site", @default: "y", yesno: true));
+                    var installSite = ui.AskYesNo("install site", @default: "y");
 
                     if (!installSite)
                     {

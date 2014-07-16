@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using scbot.Config.Json;
 using SitecoreInstallWizardCore.Utils;
 
@@ -23,20 +25,33 @@ namespace scbot.Config
         {
             var simpleMode = _options.Common.SimpleMode;
             var desiredVersion = _options.Install.Version;
+            var installMode = _options.Install.Mode.ToString().ToLower();
+
             var currentDir = Directory.GetCurrentDirectory();
             var currentDirName = Path.GetFileName(currentDir);
 
             var config = new SitecoreInstallParameters();
-            config.SetInstallMode(_options.Install.Mode);
 
             // general settings
             config.InstanceName = _ui.AskQuestion("instance name", @default: currentDirName);
             var simpleInstanceName = config.InstanceName.Replace(" ", "").ToLower();
 
             config.SitecoreVersion = _ui.AskQuestion("sitecore version",
-                @default: !string.IsNullOrEmpty(desiredVersion) ? desiredVersion : "latest"
+                @default: !string.IsNullOrEmpty(desiredVersion) ? desiredVersion : "latest",
+                validator: answer => Regex.IsMatch(answer, @"(\d.\d ?(rev)?\. ?\d{6})|latest")
             );
-            config.Language = _ui.AskQuestion("language", @default: "en-US");
+
+            var installModeAnswer = _ui.AskQuestion("install mode (full|db|client)",
+                @default: installMode,
+                validator: answer => Regex.IsMatch(answer, @"(full|db|client)", RegexOptions.IgnoreCase)
+            );
+            var parsedInstallMode = (InstallMode) Enum.Parse(typeof (InstallMode), installModeAnswer, ignoreCase: true);
+            config.SetInstallMode(parsedInstallMode);
+
+            config.Language = _ui.AskQuestion("language",
+                @default: "en-US",
+                validator: answer => CultureInfo.GetCultures(CultureTypes.AllCultures).Any(ci => ci.Name == answer)
+            );
             config.LicensePath = _ui.AskFile("license path",
                 dialogTitle: "Select Sitecore license file",
                 fileFilter: "Sitecore license files (*.xml)|*.xml",
@@ -60,9 +75,10 @@ namespace scbot.Config
             {
                 config.SqlServerUser = _ui.AskQuestion("sql server user", @default: "sa");
                 config.SqlServerPassword = _ui.AskQuestion("sql server password", @default: simpleMode ? "sa_password" : null);
-                config.SqlDbPrefix = _ui.AskQuestion("sql db prefix", @default: config.InstanceName);
-                config.SqlPrefixPhysicalFiles = bool.Parse(_ui.AskQuestion("prefix sql files", @default: "y", yesno: true));
             }
+
+            config.SqlDbPrefix = _ui.AskQuestion("sql db prefix", @default: config.InstanceName);
+            config.SqlPrefixPhysicalFiles = _ui.AskYesNo("prefix sql files", @default: "y");
 
             if (!config.SkipConfigureIis)
             {
@@ -73,15 +89,15 @@ namespace scbot.Config
             // iis settings
             if (!config.SkipConfigureIis)
             {
-                config.NetVersion = _ui.AskQuestion(".net version", "4");
+                config.NetVersion = _ui.AskQuestion(".net version", @default: "4", validator: answer => Regex.IsMatch(answer, @"\d"));
                 config.IisSiteName = _ui.AskQuestion("iis site name", @default: config.InstanceName);
                 config.IisAppPoolName = _ui.AskQuestion("iis app pool name", @default: config.InstanceName);
-                config.IisIntegratedPipelineMode = bool.Parse(_ui.AskQuestion("iis integrated mode", @default: "y", yesno: true));
+                config.IisIntegratedPipelineMode = _ui.AskYesNo("iis integrated mode", @default: "y");
                 config.IisSiteHostname = _ui.AskQuestion("site hostname", @default: simpleInstanceName);
                 config.IisSitePort = _ui.AskQuestion("site port", @default: "80");
             }
 
-            var saveJson = bool.Parse(_ui.AskQuestion("save json file", @default: "y", yesno: true));
+            var saveJson = _ui.AskYesNo("save json file", @default: "y");
 
             if (saveJson)
             {

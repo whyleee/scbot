@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using CredentialManagement;
 using Perks;
@@ -18,17 +19,23 @@ namespace scbot
             _options = options;
         }
 
-        public string AskQuestion(string question, string @default = null, bool yesno = false)
+        public string AskQuestion(string question, string @default = null, Func<string, bool> validator = null)
         {
-            return Ask(question, @default, yesno, reply: ConsoleReply);
+            return Ask(question, @default, yesno: false, validator: validator, reply: ConsoleReply);
+        }
+
+        public bool AskYesNo(string question, string @default)
+        {
+            var trueFalse = Ask(question, @default, yesno: true, validator: null, reply: ConsoleReply);
+            return bool.Parse(trueFalse);
         }
 
         public string AskFile(string question, string dialogTitle, string fileFilter = null, string @default = null)
         {
-            return Ask(question, @default, yesno: false, reply: () => OpenFileReply(dialogTitle, fileFilter));
+            return Ask(question, @default, yesno: false, validator: null, reply: () => OpenFileReply(dialogTitle, fileFilter));
         }
 
-        private string Ask(string question, string @default, bool yesno, Func<string> reply)
+        private string Ask(string question, string @default, bool yesno, Func<string, bool> validator, Func<string> reply)
         {
             if (_options.Common.SimpleMode)
             {
@@ -68,21 +75,28 @@ namespace scbot
                 if (string.IsNullOrEmpty(answer))
                 {
                     Console.WriteLine("ERROR: {0} is required", yesno ? "answer" : question);
+                    continue;
                 }
-                else
+                if (validator != null)
                 {
-                    if (yesno)
+                    if (!validator(answer))
                     {
-                        answer = YesOrNo(answer).ToString();
+                        Console.WriteLine("ERROR: invalid " + question);
+                        continue;
                     }
-
-                    var finalAnswer = yesno ? (YesOrNo(answer) ? "yes" : "no") : answer;
-                    var prevLineLength = output.Replace(formattedQuestion, "").Length + (userAnswer ?? "").Length;
-                    var finalAnswerPadded = finalAnswer.PadRight(finalAnswer.Length + Math.Abs(prevLineLength - finalAnswer.Length), ' ');
-                    WriteFinalAnswer(finalAnswerPadded, "[?] ".Length + formattedQuestion.Length);
-
-                    break;
                 }
+
+                if (yesno)
+                {
+                    answer = YesOrNo(answer).ToString();
+                }
+
+                var finalAnswer = yesno ? (YesOrNo(answer) ? "yes" : "no") : answer;
+                var prevLineLength = output.Replace(formattedQuestion, "").Length + (userAnswer ?? "").Length;
+                var finalAnswerPadded = finalAnswer.PadRight(finalAnswer.Length + Math.Abs(prevLineLength - finalAnswer.Length), ' ');
+                WriteFinalAnswer(finalAnswerPadded, "[?] ".Length + formattedQuestion.Length);
+
+                break;
             }
 
             return answer;

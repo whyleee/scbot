@@ -44,7 +44,13 @@ namespace scbot.Config.Json
             jsonLines.Insert(1, "  // General settings");
             jsonLines.Insert(jsonLines.FindIndex(line => line.Contains(SitecoreMsiParams.Installlocation)), "  // Install paths");
             jsonLines.Insert(jsonLines.FindIndex(line => line.Contains(SitecoreMsiParams.DatabaseType)), "  // DB settings");
-            jsonLines.Insert(jsonLines.FindIndex(line => line.Contains(SitecoreMsiParams.NetVersion)), "  // IIS settings");
+
+            var iisSectionIndex = jsonLines.FindIndex(line => line.Contains(SitecoreMsiParams.NetVersion));
+
+            if (iisSectionIndex != -1)
+            {
+                jsonLines.Insert(iisSectionIndex, "  // IIS settings");
+            }
 
             // write to file
             File.WriteAllLines(configPath, jsonLines);
