@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using CommandLine;
+using Perks;
 using scbot.Config;
 using scbot.Config.Json;
 using scbot.Repo;
@@ -83,7 +84,21 @@ namespace scbot
                     sitecoreVersion = null;
                 }
 
-                var sitecorePackage = repo.GetPackage(sitecoreVersion);
+                var sdnUsername = options.Install.SdnUsername;
+
+                if (userParams.ContainsKey(SitecoreMsiParams.SdnUsername))
+                {
+                    sdnUsername = userParams[SitecoreMsiParams.SdnUsername];
+                }
+
+                var sdnPassword = options.Install.SdnPassword;
+
+                if (userParams.ContainsKey(SitecoreMsiParams.SdnPassword))
+                {
+                    sdnPassword = userParams[SitecoreMsiParams.SdnPassword];
+                }
+
+                var sitecorePackage = repo.GetPackage(sitecoreVersion, sdnUsername, sdnPassword);
                 installer.InitRuntimeParams(sitecorePackage);
 
                 ok = installer.Install(sitecorePackage, options, userParams);

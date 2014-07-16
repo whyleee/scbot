@@ -4,7 +4,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Perks;
 using scbot.Config.Json;
+using scbot.Repo;
 using SitecoreInstallWizardCore.Utils;
 
 namespace scbot.Config
@@ -24,25 +26,24 @@ namespace scbot.Config
         public SitecoreInstallParameters Generate()
         {
             var simpleMode = _options.Common.SimpleMode;
-            var desiredVersion = _options.Install.Version;
-            var installMode = _options.Install.Mode.ToString().ToLower();
-
             var currentDir = Directory.GetCurrentDirectory();
             var currentDirName = Path.GetFileName(currentDir);
 
             var config = new SitecoreInstallParameters();
 
             // general settings
-            config.InstanceName = _ui.AskQuestion("instance name", @default: currentDirName);
+            config.InstanceName = _ui.AskQuestion("instance name",
+                @default: _options.Install.InstanceName.IfNotNullOrEmpty() ?? currentDirName
+            );
             var simpleInstanceName = config.InstanceName.Replace(" ", "").ToLower();
 
             config.SitecoreVersion = _ui.AskQuestion("sitecore version",
-                @default: !string.IsNullOrEmpty(desiredVersion) ? desiredVersion : "latest",
+                @default: _options.Install.Version.IfNotNullOrEmpty() ?? "latest",
                 validator: answer => Regex.IsMatch(answer, @"(\d.\d ?(rev)?\. ?\d{6})|latest")
             );
 
             var installModeAnswer = _ui.AskQuestion("install mode (full|db|client)",
-                @default: installMode,
+                @default: _options.Install.Mode.ToString().ToLower(),
                 validator: answer => Regex.IsMatch(answer, @"(full|db|client)", RegexOptions.IgnoreCase)
             );
             var parsedInstallMode = (InstallMode) Enum.Parse(typeof (InstallMode), installModeAnswer, ignoreCase: true);
@@ -57,7 +58,9 @@ namespace scbot.Config
                 fileFilter: "Sitecore license files (*.xml)|*.xml",
                 @default: simpleMode ? @"C:\Sitecore\license.xml" : null
             );
-            config.InstallFolder = _ui.AskQuestion("install path", @default: currentDir);
+            config.InstallFolder = _ui.AskQuestion("install path",
+                @default: _options.Install.InstallPath.IfNotNullOrEmpty() ?? currentDir
+            );
             config.DataFolder = _ui.AskQuestion("data path", @default: Path.Combine(config.InstallFolder, "App_Data"));
 
             // sql settings
@@ -95,6 +98,31 @@ namespace scbot.Config
                 config.IisIntegratedPipelineMode = _ui.AskYesNo("iis integrated mode", @default: "y");
                 config.IisSiteHostname = _ui.AskQuestion("site hostname", @default: simpleInstanceName);
                 config.IisSitePort = _ui.AskQuestion("site port", @default: "80");
+            }
+
+            // sdn settings
+            var addSdnCredentials = _ui.AskYesNo("add sdn credentials", @default: "y");
+
+            if (addSdnCredentials)
+            {
+                var validCredentials = false;
+                var sdnClient = new SitecoreSdnClient();
+
+                config.SdnUsername = _options.Install.SdnUsername;
+                config.SdnPassword = _options.Install.SdnPassword;
+
+                while (!validCredentials)
+                {
+                    config.SdnUsername = _ui.AskQuestion("sdn username", @default: config.SdnUsername);
+                    config.SdnPassword = _ui.AskQuestion("sdn password", @default: config.SdnPassword);
+
+                    validCredentials = sdnClient.Login(config.SdnUsername, config.SdnPassword);
+
+                    if (!validCredentials)
+                    {
+                        Console.WriteLine("ERROR: invalid SDN credentials");
+                    }
+                }
             }
 
             var saveJson = _ui.AskYesNo("save json file", @default: "y");

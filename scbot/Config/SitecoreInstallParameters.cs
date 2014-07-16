@@ -153,5 +153,14 @@ namespace scbot.Config
         [DataMember(Name = SitecoreMsiParams.MsiLogVerbose)]
         [DefaultValue(false)]
         public bool MsiLogVerbose { get; set; }
+
+
+        // SDN settings
+
+        [DataMember(Name = SitecoreMsiParams.SdnUsername)]
+        public string SdnUsername { get; set; }
+
+        [DataMember(Name = SitecoreMsiParams.SdnPassword)]
+        public string SdnPassword { get; set; }
     }
 }

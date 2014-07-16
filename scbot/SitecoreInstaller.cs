@@ -66,20 +66,6 @@ namespace scbot
                 {SitecoreMsiParams.MsiLogVerbose, "1"},
             };
 
-            // specify install mode for msi
-            if (options.Install.Mode == InstallMode.Full)
-            {
-                installParams.Add(SitecoreMsiParams.FullMode, "1");
-            }
-            else if (options.Install.Mode == InstallMode.Db)
-            {
-                installParams.Add(SitecoreMsiParams.DatabaseOnlyMode, "1");
-            }
-            else if (options.Install.Mode == InstallMode.Client)
-            {
-                installParams.Add(SitecoreMsiParams.ClientOnlyMode, "1");
-            }
-
             if (installClient)
             {
                 SetClientParams(installParams);

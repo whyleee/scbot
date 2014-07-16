@@ -56,5 +56,7 @@ namespace scbot.Config
 
         // Custom params
         public const string SitecoreVersion = "SC_VERSION";
+        public const string SdnUsername = "SC_SDN_USERNAME";
+        public const string SdnPassword = "SC_SDN_PASSWORD";
     }
 }

@@ -38,6 +38,18 @@ namespace scbot
 
         [Option('v', "version", HelpText = "Sitecore version to install (format: 7.2 rev. 140526). Default: latest version")]
         public string Version { get; set; }
+
+        [Option('n', "name", HelpText = "Target instance name")]
+        public string InstanceName { get; set; }
+
+        [Option('p', "path", HelpText = "Path to the target directory for installation")]
+        public string InstallPath { get; set; }
+
+        [Option("sdn-user", HelpText = "SDN username for downloading Sitecore packages")]
+        public string SdnUsername { get; set; }
+
+        [Option("sdn-password", HelpText = "SDN password for downloading Sitecore packages")]
+        public string SdnPassword { get; set; }
     }
 
     [Flags]

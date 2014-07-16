@@ -18,12 +18,14 @@ namespace scbot.Repo
             _ui = ui;
         }
 
-        public SitecorePackage GetPackage(string version = null)
+        public SitecorePackage GetPackage(string version, string sdnUsername = null, string sdnPassword = null)
         {
             var loggedIn = _ui.AskCredentials(
                 credentialsTest: _sdnClient.Login,
                 title: "Sitecore SDN credentials",
-                message: "Provide your credentials for http://sdn.sitecore.net/"
+                message: "Provide your credentials for http://sdn.sitecore.net/",
+                username: sdnUsername,
+                password: sdnPassword
             );
 
             if (!loggedIn)

@@ -102,26 +102,44 @@ namespace scbot
             return answer;
         }
 
-        public bool AskCredentials(Func<string, string, bool> credentialsTest, string title = null, string message = null)
+        public bool AskCredentials(Func<string, string, bool> credentialsTest, string title = null,
+            string message = null, string username = null, string password = null)
         {
             var credentialStoreName = Assembly.GetExecutingAssembly().GetName().Name;
-            var sdnCredentials = new Credential {Target = credentialStoreName};
+            var credentials = new Credential {Target = credentialStoreName};
             var loggedIn = false;
 
-            if (sdnCredentials.Exists())
+            if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
             {
-                sdnCredentials.Load();
-                loggedIn = credentialsTest(sdnCredentials.Username, sdnCredentials.Password);
+                loggedIn = credentialsTest(username, password);
+            }
+
+            if (!loggedIn && credentials.Exists())
+            {
+                credentials.Load();
+                loggedIn = credentialsTest(credentials.Username, credentials.Password);
             }
 
             if (!loggedIn)
             {
+                var fillUsername = username.IfNotNullOrEmpty() ?? credentials.Username;
+                var fillPassword = password.IfNotNullOrEmpty() ?? credentials.Password;
+
                 using (var prompt = new VistaPrompt())
                 {
                     prompt.Title = title;
                     prompt.Message = message;
                     prompt.GenericCredentials = true;
                     prompt.ShowSaveCheckBox = true;
+
+                    if (!string.IsNullOrEmpty(fillUsername))
+                    {
+                        prompt.Username = fillUsername;
+                    }
+                    if (!string.IsNullOrEmpty(fillPassword))
+                    {
+                        prompt.Password = fillPassword;
+                    }
 
                     while (!loggedIn)
                     {
@@ -139,13 +157,13 @@ namespace scbot
 
                     if (prompt.SaveChecked)
                     {
-                        sdnCredentials = new Credential(
+                        credentials = new Credential(
                             prompt.Username,
                             prompt.Password,
                             credentialStoreName,
                             CredentialType.Generic
                         );
-                        sdnCredentials.Save();
+                        credentials.Save();
                     }
                 }
             }

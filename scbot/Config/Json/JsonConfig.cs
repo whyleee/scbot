@@ -52,6 +52,13 @@ namespace scbot.Config.Json
                 jsonLines.Insert(iisSectionIndex, "  // IIS settings");
             }
 
+            var sdnSettingsIndex = jsonLines.FindIndex(line => line.Contains(SitecoreMsiParams.SdnUsername));
+
+            if (sdnSettingsIndex != -1)
+            {
+                jsonLines.Insert(sdnSettingsIndex, "  // SDN settings");
+            }
+
             // write to file
             File.WriteAllLines(configPath, jsonLines);
         }
