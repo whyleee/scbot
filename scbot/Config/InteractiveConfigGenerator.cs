@@ -72,12 +72,35 @@ namespace scbot.Config
             }
 
             config.DbType = "MSSQL"; // no oracle support
-            config.SqlServer = AskForSqlServer(config, _ui);
+            config.SqlServer = AskForSqlServer(config);
 
             if (!config.SkipInstallSqlData)
             {
-                config.SqlServerUser = _ui.AskQuestion("sql server user", @default: "sa");
-                config.SqlServerPassword = _ui.AskQuestion("sql server password", @default: simpleMode ? "sa_password" : null);
+                var validSqlConnection = simpleMode;
+
+                config.SqlServerUser = "sa";
+                config.SqlServerPassword = simpleMode ? "sa_password" : null;
+
+                while (!validSqlConnection)
+                {
+                    config.SqlServerUser = _ui.AskQuestion("sql server user", @default: config.SqlServerUser);
+                    config.SqlServerPassword = _ui.AskQuestion("sql server password", @default: config.SqlServerPassword);
+
+                    var connectionResult = SQLUtil.TestSqlServerConnection(
+                        config.SqlServer,
+                        config.SqlServerUser,
+                        config.SqlServerPassword,
+                        verifyUserIsSysadmin: true
+                    );
+
+                    validSqlConnection = connectionResult.ErrorCode == 0;
+
+                    if (!validSqlConnection)
+                    {
+                        Console.WriteLine("ERROR: " + connectionResult.ErrorMessage);
+                        config.SqlServer = _ui.AskQuestion("sql server", @default: config.SqlServer);
+                    }
+                }
             }
 
             config.SqlDbPrefix = _ui.AskQuestion("sql db prefix", @default: config.InstanceName);
@@ -105,11 +128,11 @@ namespace scbot.Config
 
             if (addSdnCredentials)
             {
-                var validCredentials = false;
+                var validCredentials = simpleMode;
                 var sdnClient = new SitecoreSdnClient();
 
-                config.SdnUsername = _options.Install.SdnUsername;
-                config.SdnPassword = _options.Install.SdnPassword;
+                config.SdnUsername = _options.Install.SdnUsername ?? (simpleMode ? "sdn_username" : null);
+                config.SdnPassword = _options.Install.SdnPassword ?? (simpleMode ? "sdn_password" : null);
 
                 while (!validCredentials)
                 {
@@ -138,7 +161,7 @@ namespace scbot.Config
             return config;
         }
 
-        private string AskForSqlServer(SitecoreInstallParameters config, ConsoleUi ui)
+        private string AskForSqlServer(SitecoreInstallParameters config)
         {
             Console.WriteLine("Searching for SQL servers...");
 
@@ -156,7 +179,7 @@ namespace scbot.Config
                 }
             }
 
-            return ui.AskQuestion("sql server", @default: sqlServers.FirstOrDefault());
+            return _ui.AskQuestion("sql server", @default: sqlServers.FirstOrDefault());
         }
     }
 }
