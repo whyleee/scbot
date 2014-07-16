@@ -14,11 +14,14 @@ namespace scbot.Config
         [DataMember(Name = SitecoreMsiParams.InstanceName)]
         public string InstanceName { get; set; }
 
-        [DataMember(Name = SitecoreMsiParams.LicensePath)]
-        public string LicensePath { get; set; }
+        [DataMember(Name = SitecoreMsiParams.SitecoreVersion)]
+        public string SitecoreVersion { get; set; }
 
         [DataMember(Name = SitecoreMsiParams.Language)]
         public string Language { get; set; }
+
+        [DataMember(Name = SitecoreMsiParams.LicensePath)]
+        public string LicensePath { get; set; }
 
 
         // Install mode settings

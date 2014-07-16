@@ -15,6 +15,7 @@ namespace scbot
         {
             var options = new Options();
             var ui = new ConsoleUi(options);
+            var config = new JsonConfig();
             string command = null;
             object commandOptions = null;
 
@@ -35,12 +36,30 @@ namespace scbot
             {
                 options.Common = options.Install;
 
-                var sitecorePackage = repo.GetPackage(options.Install.Version);
+                IDictionary<string, string> userParams = null;
+
+                if (!string.IsNullOrEmpty(options.Install.ConfigPath))
+                {
+                    userParams = config.ReadConfig(options.Install.ConfigPath);
+                }
+
+                var sitecoreVersion = options.Install.Version;
+
+                // if no version, but user config provided - try to get the sitecore version from config
+                if (string.IsNullOrEmpty(sitecoreVersion) && userParams != null)
+                {
+                    sitecoreVersion = userParams[SitecoreMsiParams.SitecoreVersion];
+                }
+
+                if (sitecoreVersion == "latest")
+                {
+                    sitecoreVersion = null;
+                }
+
+                var sitecorePackage = repo.GetPackage(sitecoreVersion);
                 installer.InitRuntimeParams(sitecorePackage);
 
-                IEnumerable<KeyValuePair<string, string>> userParams = null;
-
-                if (string.IsNullOrEmpty(options.Install.ConfigPath))
+                if (userParams == null)
                 {
                     Console.Write("No config provided ('-c' param). ");
                     Console.WriteLine(options.Common.SimpleMode
@@ -48,7 +67,7 @@ namespace scbot
                         : "Answer the questions below...");
 
                     var configGenerator = new InteractiveConfigGenerator(ui, options);
-                    var config = configGenerator.Generate();
+                    var generatedConfig = configGenerator.Generate();
 
                     // can't install site with all default settings
                     if (options.Common.SimpleMode)
@@ -63,7 +82,7 @@ namespace scbot
                         Environment.Exit(0);
                     }
 
-                    userParams = new JsonConfig().ParseParams(config);
+                    userParams = new JsonConfig().ParseParams(generatedConfig);
                 }
 
                 ok = installer.Install(sitecorePackage, options, userParams);

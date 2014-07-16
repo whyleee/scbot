@@ -24,7 +24,7 @@ namespace scbot.Config.Json
             };
         }
 
-        public IEnumerable<KeyValuePair<string, string>> ReadConfig(string configPath)
+        public IDictionary<string, string> ReadConfig(string configPath)
         {
             Ensure.ArgumentNotNullOrEmpty(configPath, "configPath");
 
@@ -50,7 +50,7 @@ namespace scbot.Config.Json
             File.WriteAllLines(configPath, jsonLines);
         }
 
-        public IEnumerable<KeyValuePair<string, string>> ParseParams(SitecoreInstallParameters config)
+        public IDictionary<string, string> ParseParams(SitecoreInstallParameters config)
         {
             var json = JsonConvert.SerializeObject(config, _serializeSettings);
             var @params = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);

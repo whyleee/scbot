@@ -53,5 +53,8 @@ namespace scbot.Config
         public const string MsiTransforms = "TRANSFORMS";
         public const string MsiNewInstance = "MSINEWINSTANCE";
         public const string MsiLogVerbose = "LOGVERBOSE";
+
+        // Custom params
+        public const string SitecoreVersion = "SC_VERSION";
     }
 }

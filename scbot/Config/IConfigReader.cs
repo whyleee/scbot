@@ -4,6 +4,6 @@ namespace scbot.Config
 {
     public interface IConfigReader
     {
-        IEnumerable<KeyValuePair<string, string>> ReadConfig(string configPath);
+        IDictionary<string, string> ReadConfig(string configPath);
     }
 }

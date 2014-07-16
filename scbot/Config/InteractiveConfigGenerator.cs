@@ -22,6 +22,7 @@ namespace scbot.Config
         public SitecoreInstallParameters Generate()
         {
             var simpleMode = _options.Common.SimpleMode;
+            var desiredVersion = _options.Install.Version;
             var currentDir = Directory.GetCurrentDirectory();
             var currentDirName = Path.GetFileName(currentDir);
 
@@ -31,6 +32,10 @@ namespace scbot.Config
             // general settings
             config.InstanceName = _ui.AskQuestion("instance name", @default: currentDirName);
             var simpleInstanceName = config.InstanceName.Replace(" ", "").ToLower();
+
+            config.SitecoreVersion = _ui.AskQuestion("sitecore version",
+                @default: !string.IsNullOrEmpty(desiredVersion) ? desiredVersion : "latest"
+            );
             config.Language = _ui.AskQuestion("language", @default: "en-US");
             config.LicensePath = _ui.AskFile("license path",
                 dialogTitle: "Select Sitecore license file",

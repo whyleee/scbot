@@ -10,7 +10,7 @@ namespace scbot.Config.Resources
 {
     public class AssemblyXmlResourceConfigReader : IConfigReader
     {
-        public IEnumerable<KeyValuePair<string, string>> ReadConfig(string configPath)
+        public IDictionary<string, string> ReadConfig(string configPath)
         {
             Ensure.ArgumentNotNullOrEmpty(configPath, "configPath");
 
@@ -27,10 +27,10 @@ namespace scbot.Config.Resources
                     .Root
                     .Element("Parameters")
                     .Elements("Param")
-                    .Select(el => new KeyValuePair<string, string>(
-                        key: el.Attribute("Name").Value,
-                        value: el.Attribute("Value").Value)
-                    ).ToList();
+                    .ToDictionary(
+                        keySelector: el => el.Attribute("Name").Value,
+                        elementSelector: el => el.Attribute("Value").Value
+                    );
 
                 return runtimeParams;
             }

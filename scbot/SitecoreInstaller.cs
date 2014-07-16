@@ -5,8 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Security.Principal;
 using System.Text;
+using Perks;
 using scbot.Config;
-using scbot.Config.Json;
 using scbot.Config.Resources;
 using scbot.Repo;
 using SitecoreInstallWizardCore.RuntimeInfo;
@@ -16,11 +16,12 @@ namespace scbot
 {
     public class SitecoreInstaller
     {
-        private readonly JsonConfig _userConfig = new JsonConfig();
         private readonly AssemblyXmlResourceConfigReader _runtimeConfig = new AssemblyXmlResourceConfigReader();
 
         public void InitRuntimeParams(SitecorePackage sitecorePackage)
         {
+            Ensure.ArgumentNotNull(sitecorePackage, "sitecorePackage");
+
             var runtimeParams = _runtimeConfig
                 .ReadConfig(sitecorePackage.LocalPaths.WizardPath)
                 .Select(param => new RuntimeParameter(param.Key, param.Value))
@@ -29,19 +30,13 @@ namespace scbot
             RuntimeParameters.SetParameters(runtimeParams);
         }
 
-        public bool Install(SitecorePackage sitecorePackage, Options options, IEnumerable<KeyValuePair<string, string>> userParams = null)
+        public bool Install(SitecorePackage sitecorePackage, Options options, IDictionary<string, string> userParams)
         {
-            if (userParams == null && string.IsNullOrEmpty(options.Install.ConfigPath))
-            {
-                throw new ArgumentException("Neither user params nor config path provided");
-            }
+            Ensure.ArgumentNotNull(sitecorePackage, "sitecorePackage");
+            Ensure.ArgumentNotNull(options, "options");
+            Ensure.ArgumentNotNull(userParams, "userParams");
 
             var installParams = CreateInstallParams(sitecorePackage, options);
-
-            if (userParams == null)
-            {
-                userParams = _userConfig.ReadConfig(options.Install.ConfigPath);
-            }
 
             AddUserParams(userParams, installParams);
 
@@ -96,7 +91,7 @@ namespace scbot
             installParams.Add(SitecoreMsiParams.IisSiteID, IisUtil.GetUniqueSiteID().ToString());
         }
 
-        private void AddUserParams(IEnumerable<KeyValuePair<string, string>> userParams, IDictionary<string, string> installParams)
+        private void AddUserParams(IDictionary<string, string> userParams, IDictionary<string, string> installParams)
         {
             foreach (var @param in userParams)
             {
@@ -106,7 +101,7 @@ namespace scbot
             // TODO: if SqlServerConfig{User|Password} set, create SQL user if not exists
         }
 
-        private string MakeMsiParams(IEnumerable<KeyValuePair<string, string>> @params)
+        private string MakeMsiParams(IDictionary<string, string> @params)
         {
             var msiParams = new StringBuilder();
 
@@ -124,7 +119,7 @@ namespace scbot
             return msiParams.ToString();
         }
 
-        private bool RunMsi(SitecorePackage sitecorePackage, IEnumerable<KeyValuePair<string, string>> installParams)
+        private bool RunMsi(SitecorePackage sitecorePackage, IDictionary<string, string> installParams)
         {
             var logFileName = string.Format("scbot.install.{0}.log", DateTime.Now.ToString("yyyy-MM-dd'.'HH-mm-ss"));
             var logPath = Path.Combine(sitecorePackage.LocalPaths.PackageDir, logFileName);
