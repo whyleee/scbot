@@ -86,6 +86,7 @@
     <Compile Include="Config\SitecoreInstallParameters.cs" />
     <Compile Include="Config\InteractiveConfigGenerator.cs" />
     <Compile Include="ConsoleUi.cs" />
+    <Compile Include="SitecoreDbHelper.cs" />
     <Compile Include="Repo\CookieAwareWebClient.cs">
       <SubType>Component</SubType>
     </Compile>
