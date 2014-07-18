@@ -46,16 +46,8 @@ namespace scbot.Repo
             }
 
             var packageDir = CreatePackageDir(package);
-            var installerFile = GetInstaller(package, packageDir);
-            var unpackedInstallerDir = GetUnpackedInstallerDir(packageDir, installerFile);
-            var unpackedMsiDir = GetUnpackedMsiDir(unpackedInstallerDir);
-
-            package.LocalPaths = new SitecorePackagePaths
-            {
-                PackageDir = packageDir,
-                MsiPath = Path.Combine(unpackedMsiDir, "Sitecore.msi"),
-                WizardPath = Path.Combine(unpackedMsiDir, "InstallWizard.exe")
-            };
+            var packageFile = GetInstaller(package, packageDir);
+            package.LocalPaths = ExtractPackage(packageFile);
 
             return package;
         }
@@ -86,72 +78,40 @@ namespace scbot.Repo
             return installerFile;
         }
 
-        private string GetUnpackedInstallerDir(string packageDir, string installerFile)
+        private SitecorePackagePaths ExtractPackage(string packagePath)
         {
-            var unpackedInstallerDir = Path.Combine(packageDir, "unpacked");
-
-            if (!Directory.Exists(unpackedInstallerDir) || !Directory.GetFileSystemEntries(unpackedInstallerDir).Any())
+            var packageDir = Path.GetDirectoryName(packagePath);
+            var extractedPackageDir = Path.Combine(packageDir, @"SupportFiles\exe");
+            var packagePaths = new SitecorePackagePaths
             {
-                Directory.CreateDirectory(unpackedInstallerDir);
+                PackageDir = packageDir,
+                MsiPath = Path.Combine(extractedPackageDir, "Sitecore.msi"),
+                WizardPath = Path.Combine(extractedPackageDir, "InstallWizard.exe")
+            };
 
-                Console.WriteLine("Unpacking installer...");
-                ExtractArchive(installerFile, unpackedInstallerDir);
+            if (File.Exists(packagePaths.MsiPath) && File.Exists(packagePaths.WizardPath))
+            {
+                return packagePaths;
             }
 
-            return unpackedInstallerDir;
-        }
-
-        private string GetUnpackedMsiDir(string unpackedInstallerDir)
-        {
-            var cabDirPath = Path.Combine(unpackedInstallerDir, @".rsrc\RES_CAB");
-            var cabPath = Path.Combine(cabDirPath, "SETUP_BOOTSTRAP_1.CAB");
-            var unpackedMsiDir = Path.Combine(cabDirPath, "exe");
-
-            if (!Directory.Exists(unpackedMsiDir))
+            var packageExe = new ProcessStartInfo(packagePath, "/ExtractCab")
             {
-                Console.WriteLine("Unpacking CAB's...");
-                ExtractArchive(cabPath, cabDirPath);
-            }
-
-            return unpackedMsiDir;
-        }
-
-        private void ExtractArchive(string archivePath, string extractPath)
-        {
-            var sevenZArgs = string.Format("x \"{0}\" -o\"{1}\" -y", archivePath, extractPath);
-            var sevenZ = new ProcessStartInfo("7z", sevenZArgs)
-            {
-                RedirectStandardOutput = true,
+                WorkingDirectory = packageDir,
                 UseShellExecute = false
             };
 
-            using (var process = Process.Start(sevenZ))
+            using (var process = Process.Start(packageExe))
             {
-                var output = process.StandardOutput.ReadToEnd();
+                process.WaitForExit();
 
                 if (process.ExitCode != 0)
                 {
-                    output = RemoveLines(output, 5);
-                    Console.WriteLine("Error executing 7-zip: " + output);
+                    Console.WriteLine("ERROR: Extraction of Sitcore package failed.");
+                    Environment.Exit(-1);
                 }
             }
-        }
 
-        private string RemoveLines(string s, int count)
-        {
-            for (int i = 0; i < count; i++)
-            {
-                var endLineIndex = s.IndexOf(Environment.NewLine, StringComparison.OrdinalIgnoreCase);
-
-                if (endLineIndex == -1 || endLineIndex + 2 > s.Length - 1)
-                {
-                    break;
-                }
-
-                s = s.Substring(endLineIndex + 2);
-            }
-
-            return s;
+            return packagePaths;
         }
     }
 }
