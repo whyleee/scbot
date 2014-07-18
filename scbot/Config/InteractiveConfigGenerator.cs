@@ -70,7 +70,7 @@ namespace scbot.Config
                 @default: simpleMode ? @"C:\Sitecore\license.xml" : null
             );
             config.InstallFolder = _ui.AskQuestion("install path", @default: installPath.IfNotNullOrEmpty() ?? currentDir);
-            config.DataFolder = _ui.AskQuestion("data path", @default: Path.Combine(config.InstallFolder, "App_Data"));
+            config.DataFolder = _ui.AskQuestion("data path", @default: Path.Combine(config.InstallFolder, "Data"));
 
             // sql settings
             if (!config.SkipInstallSqlData)
