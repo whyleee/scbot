@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using CredentialManagement;
 using Perks;
@@ -12,6 +10,7 @@ namespace scbot
 {
     public class ConsoleUi
     {
+        private readonly CredentialStorage _credentialStorage = new CredentialStorage();
         private readonly Options _options;
 
         public ConsoleUi(Options options)
@@ -105,8 +104,6 @@ namespace scbot
         public bool AskCredentials(Func<string, string, bool> credentialsTest, string title = null,
             string message = null, string username = null, string password = null)
         {
-            var credentialStoreName = Assembly.GetExecutingAssembly().GetName().Name;
-            var credentials = new Credential {Target = credentialStoreName};
             var loggedIn = false;
 
             if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
@@ -114,10 +111,16 @@ namespace scbot
                 loggedIn = credentialsTest(username, password);
             }
 
-            if (!loggedIn && credentials.Exists())
+            Credentials credentials = null;
+
+            if (!loggedIn)
             {
-                credentials.Load();
-                loggedIn = credentialsTest(credentials.Username, credentials.Password);
+                credentials = _credentialStorage.GetSavedCredentials();
+
+                if (credentials != null)
+                {
+                    loggedIn = credentialsTest(credentials.Username, credentials.Password);
+                }
             }
 
             if (!loggedIn)
@@ -157,13 +160,7 @@ namespace scbot
 
                     if (prompt.SaveChecked)
                     {
-                        credentials = new Credential(
-                            prompt.Username,
-                            prompt.Password,
-                            credentialStoreName,
-                            CredentialType.Generic
-                        );
-                        credentials.Save();
+                        _credentialStorage.SaveCredentials(prompt.Username, prompt.Password);
                     }
                 }
             }

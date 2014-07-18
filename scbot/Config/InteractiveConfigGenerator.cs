@@ -16,6 +16,7 @@ namespace scbot.Config
         private readonly ConsoleUi _ui;
         private readonly Options _options;
         private readonly IConfigWriter _configWriter = new JsonConfig();
+        private readonly CredentialStorage _credentialStorage = new CredentialStorage();
 
         public InteractiveConfigGenerator(ConsoleUi ui, Options options)
         {
@@ -139,8 +140,12 @@ namespace scbot.Config
                 var validCredentials = simpleMode;
                 var sdnClient = new SitecoreSdnClient();
 
-                config.SdnUsername = _options.Install.SdnUsername ?? (simpleMode ? "sdn_username" : null);
-                config.SdnPassword = _options.Install.SdnPassword ?? (simpleMode ? "sdn_password" : null);
+                var savedCredentials = _credentialStorage.GetSavedCredentials();
+                var defaultUsername = savedCredentials.Username ?? (simpleMode ? "sdn_username" : null);
+                var defaultPassword = savedCredentials.Password ?? (simpleMode ? "sdn_password" : null);
+
+                config.SdnUsername = _options.Install.SdnUsername ?? defaultUsername;
+                config.SdnPassword = _options.Install.SdnPassword ?? defaultPassword;
 
                 while (!validCredentials)
                 {
