@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 
 namespace scbot.Repo
 {
@@ -45,73 +47,116 @@ namespace scbot.Repo
                 Console.WriteLine("Using Sitecore {0}...", version);
             }
 
-            var packageDir = CreatePackageDir(package);
-            var packageFile = GetInstaller(package, packageDir);
-            package.LocalPaths = ExtractPackage(packageFile);
+            try
+            {
+                BuildPackage(package);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+
+                if (ex.InnerException != null)
+                {
+                    error += " ---> " + ex.InnerException.Message;
+                }
+
+                Console.WriteLine("ERROR: " + error);
+                Console.WriteLine("Trying to fix the package...");
+
+                // try to build the package one more time
+                BuildPackage(package);
+            }
 
             return package;
         }
 
-        private string CreatePackageDir(SitecorePackage package)
+        private void BuildPackage(SitecorePackage package)
+        {
+            SetPackageLocalPaths(package);
+            CreatePackageDir(package);
+            DownloadPackage(package);
+            ExtractPackage(package);
+        }
+
+        private void SetPackageLocalPaths(SitecorePackage package)
+        {
+            var packageDir = GetPackageDir(package);
+            package.LocalPaths.PackageDir = packageDir;
+            package.LocalPaths.InstallerPath = Path.Combine(package.LocalPaths.PackageDir, "sitecore_installer.exe");
+
+            var extractedPackageDir = Path.Combine(package.LocalPaths.PackageDir, @"SupportFiles\exe");
+            package.LocalPaths.MsiPath = Path.Combine(extractedPackageDir, "Sitecore.msi");
+            package.LocalPaths.WizardPath = Path.Combine(extractedPackageDir, "InstallWizard.exe");
+        }
+
+        private string GetPackageDir(SitecorePackage package)
         {
             var repoDir = Environment.ExpandEnvironmentVariables(REPO_DIR);
-            var packageDir = Path.Combine(repoDir, package.Version);
 
-            if (!Directory.Exists(packageDir))
-            {
-                Directory.CreateDirectory(packageDir);
-            }
-
-            return packageDir;
+            return Path.Combine(repoDir, package.Version);
         }
 
-        private string GetInstaller(SitecorePackage package, string packageDir)
+        private void CreatePackageDir(SitecorePackage package)
         {
-            var installerFile = Path.Combine(packageDir, "sitecore_installer.exe");
+            if (!Directory.Exists(package.LocalPaths.PackageDir))
+            {
+                Directory.CreateDirectory(package.LocalPaths.PackageDir);
+            }
+        }
 
-            if (!File.Exists(installerFile))
+        private void DownloadPackage(SitecorePackage package)
+        {
+            var installerFileExists = File.Exists(package.LocalPaths.InstallerPath);
+
+            if (!installerFileExists || package.Corrupted)
             {
                 Console.WriteLine("Downloading Sitecore package...");
-                _sdnClient.DownloadFile(package.DownloadUrl, installerFile);
-            }
 
-            return installerFile;
-        }
-
-        private SitecorePackagePaths ExtractPackage(string packagePath)
-        {
-            var packageDir = Path.GetDirectoryName(packagePath);
-            var extractedPackageDir = Path.Combine(packageDir, @"SupportFiles\exe");
-            var packagePaths = new SitecorePackagePaths
-            {
-                PackageDir = packageDir,
-                MsiPath = Path.Combine(extractedPackageDir, "Sitecore.msi"),
-                WizardPath = Path.Combine(extractedPackageDir, "InstallWizard.exe")
-            };
-
-            if (File.Exists(packagePaths.MsiPath) && File.Exists(packagePaths.WizardPath))
-            {
-                return packagePaths;
-            }
-
-            var packageExe = new ProcessStartInfo(packagePath, "/ExtractCab")
-            {
-                WorkingDirectory = packageDir,
-                UseShellExecute = false
-            };
-
-            using (var process = Process.Start(packageExe))
-            {
-                process.WaitForExit();
-
-                if (process.ExitCode != 0)
+                try
                 {
-                    Console.WriteLine("ERROR: Extraction of Sitcore package failed.");
-                    Environment.Exit(-1);
+                    _sdnClient.DownloadFile(package.DownloadUrl, package.LocalPaths.InstallerPath);
+                }
+                catch (Exception ex)
+                {
+                    package.Corrupted = true;
+                    throw;
                 }
             }
+        }
 
-            return packagePaths;
+        private void ExtractPackage(SitecorePackage package)
+        {
+            var msiFileExists = File.Exists(package.LocalPaths.MsiPath);
+            var wizardFileExists = File.Exists(package.LocalPaths.WizardPath);
+
+            if (!msiFileExists || !wizardFileExists)
+            {
+                var packageExe = new ProcessStartInfo(package.LocalPaths.InstallerPath, "/ExtractCab")
+                {
+                    WorkingDirectory = package.LocalPaths.PackageDir,
+                    UseShellExecute = false
+                };
+
+                try
+                {
+                    using (var process = Process.Start(packageExe))
+                    {
+                        process.WaitForExit();
+
+                        if (process.ExitCode != 0)
+                        {
+                            Console.WriteLine("ERROR: Extraction of Sitecore package failed.");
+                            Environment.Exit(-1);
+                        }
+                    }
+                }
+                catch (Win32Exception ex)
+                {
+                    // if Win32 error - then the package is probably corrupted
+                    package.Corrupted = true;
+                    throw;
+                }
+            }
         }
     }
 }

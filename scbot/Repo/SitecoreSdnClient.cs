@@ -116,9 +116,18 @@ namespace scbot.Repo
             }
             catch (WebException ex)
             {
-                Console.WriteLine("ERROR: " + ex.Message);
-                Environment.Exit(-1);
+                if (ex.Status == WebExceptionStatus.ProtocolError && ex.Response != null)
+                {
+                    if (((HttpWebResponse) ex.Response).StatusCode == HttpStatusCode.NotFound)
+                    {
+                        Console.WriteLine("ERROR: " + ex.Message);
+                        Environment.Exit(-1);
+                    }
+                }
+
+                throw;
             }
+            
         }
 
         private static int IndexOfNth(string str, char c, int n)
