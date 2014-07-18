@@ -26,14 +26,24 @@ namespace scbot.Config
         public SitecoreInstallParameters Generate()
         {
             var simpleMode = _options.Common.SimpleMode;
+
             var currentDir = Directory.GetCurrentDirectory();
             var currentDirName = Path.GetFileName(currentDir);
+
+            var installPath = _options.Install.InstallPath;
+            string installDirName = null;
+
+            if (!string.IsNullOrEmpty(installPath))
+            {
+                installPath = Path.GetFullPath(installPath);
+                installDirName = Path.GetFileName(installPath);
+            }
 
             var config = new SitecoreInstallParameters();
 
             // general settings
             config.InstanceName = _ui.AskQuestion("instance name",
-                @default: _options.Install.InstanceName.IfNotNullOrEmpty() ?? currentDirName
+                @default: _options.Install.InstanceName.IfNotNullOrEmpty() ?? installDirName.IfNotNullOrEmpty() ?? currentDirName
             );
             var simpleInstanceName = config.InstanceName.Replace(" ", "").ToLower();
 
@@ -58,9 +68,7 @@ namespace scbot.Config
                 fileFilter: "Sitecore license files (*.xml)|*.xml",
                 @default: simpleMode ? @"C:\Sitecore\license.xml" : null
             );
-            config.InstallFolder = _ui.AskQuestion("install path",
-                @default: _options.Install.InstallPath.IfNotNullOrEmpty() ?? currentDir
-            );
+            config.InstallFolder = _ui.AskQuestion("install path", @default: installPath.IfNotNullOrEmpty() ?? currentDir);
             config.DataFolder = _ui.AskQuestion("data path", @default: Path.Combine(config.InstallFolder, "App_Data"));
 
             // sql settings
